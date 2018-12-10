@@ -319,11 +319,20 @@ if TRAIN:
         lf = 'transitions_{}.pickle'.format(load_file)
         if os.path.isfile(lf):
             with open(lf, 'rb') as f:
-                ( tmpm, tmpr ) = pickle.load(f)
-                replay_memory = tmpm if REPLAY_BUFFERSIZE >= len(tmpm) else tmpm[0:REPLAY_BUFFERSIZE]
-                reward_memory = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
-                rm_size = len(replay_memory)
-                rm_next = rm_size if rm_size < REPLAY_BUFFERSIZE else 0
+                tmp = pickle.load(f)
+                if len(tmp) < 3:
+                    rl.write('# .. loading replay-buffer/ reward-buffer from "{}"\n'.format(lf))
+                    ( tmpm, tmpr ) = tmp
+                    replay_memory = tmpm if REPLAY_BUFFERSIZE >= len(tmpm) else tmpm[0:REPLAY_BUFFERSIZE]
+                    reward_memory = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
+                    rm_size = len(replay_memory)
+                    rm_next = rm_size if rm_size < REPLAY_BUFFERSIZE else 0
+                else:
+                    rl.write('# .. [new] loading replay-buffer/ reward_buffer and rm_next from "{}"\n'.format(lf))
+                    ( tmpm, tmpr, rm_next ) = tmp
+                    replay_memory = tmpm if REPLAY_BUFFERSIZE >= len(tmpm) else tmpm[0:REPLAY_BUFFERSIZE]
+                    reward_memory = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
+                    rm_size = len(replay_memory)
 
 score_buffer = []
 noise = np.array([0.0,0.0,0.0,0.0])                # TODO: work with ACTION_SIZE
@@ -489,7 +498,7 @@ if TRAIN:
         sf = 'transitions_{}.pickle'.format(save_file)
         rl.write('# .. saving transisitions to "{}"\n'.format(sf))
         with open(sf, 'wb') as f:
-            pickledata = ( replay_memory, reward_memory )
+            pickledata = ( replay_memory, reward_memory, rm_next )
             pickle.dump(pickledata, f, pickle.HIGHEST_PROTOCOL)
 
 rl.close()
