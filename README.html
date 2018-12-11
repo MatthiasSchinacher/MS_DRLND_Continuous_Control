@@ -6,6 +6,8 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 <p>In the environment an robotic arm agent is tasked with trying to stay in a slowly moving spherical target area (&quot;the green ball&quot;).</p>
 <p>The agent is supposed to get a reward of 0.1 per time step and an episode is 1000 time steps. The environment can be accessed via python/ has a python interface. The state space is a vector of 33 numeric values (that represent the agents velocity, location and so on).</p>
 <p>The defined goal of the homework/ project is/was to achieve a &quot;sustained&quot; score of at least 30 per episode. That means, that the algorithm/ the model should be able to average above score 30 for &quot;the last 100 episodes&quot; over a number of episodes.</p>
+<h3 id="amendment-2018-12-11-version-2">Amendment 2018-12-11 (Version 2)</h3>
+<p>Because my 1st attempt did not yield the sustained 30 score goal, I made some adjustments. Upon the advice of counsel, I modified my script to use the 20 Agents environment, instead of the single agent environment. More precisly, I copied my script into a new file called &quot;python ms_drlndcc_pr_20.py&quot; and made the adjustments there.</p>
 <h1 id="dependencies">Dependencies</h1>
 <p>The actual &quot;program&quot; (agent) is a python script that can be run from the command line. To be able to run it, python 3.6 must be installed.</p>
 <h2 id="python-packages">Python packages</h2>
@@ -18,9 +20,13 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 <p>A minimal install of OpenAI gym is required, as well as the classic control environment group and the box2d environment group; instructions how to install this <a href="https://github.com/openai/gym">can be found here</a>.</p>
 <p>Additionally one needs the &quot;Reacher&quot; environment from udacity, which was created for the course. This can be downloaded <a href="https://s3-us-west-1.amazonaws.com/udacity-drlnd/P2/Reacher/one_agent/Reacher_Linux.zip">for Linux</a> (and other operating systems).</p>
 <h1 id="running-the-script-program-agent">Running the script/ program/ agent</h1>
-<p>To run the script from the command line (Linux), the dependencies mentioned must be installed and the contents of the &quot;Reacher_Linux.zip&quot; need to be unzipped in the same directory, where the actual script &quot;ms_drlndcc_pr.py&quot; resides, so that we have a subdirectory &quot;Recher_Linux&quot;.</p>
+<p>To run the script from the command line (Linux), the dependencies mentioned must be installed and the contents of the &quot;Reacher_Linux.zip&quot; need to be unzipped in the same directory, where the actual script &quot;ms_drlndcc_pr.py&quot; resides, so that we have a subdirectory &quot;Reacher_Linux&quot;.</p>
 <pre><code>python ms_drlndcc_pr.py command-file.ini</code></pre>
 <p>will start the agent as per the parameters in the file &quot;command-file.ini&quot;. Depending on the contents of the command-file, the agent will try to solve the environment and train the neural networks that approximate the actor and critic functions of the DDPG algorithm used. the script can load predefined NN- models from a files and only simulate the Reacher- environment without learning. For more details see also the project- report.</p>
+<h3 id="amendment-2018-12-11-version-2-1">Amendment 2018-12-11 (Version 2)</h3>
+<p>To run the simulation with 20 agents instead of 1, use following instead:</p>
+<pre><code>python ms_drlndcc_pr_20.py command-file.ini</code></pre>
+<p>Note: the &quot;Reacher_Linux&quot; subdirectory needs to include the correct version of the environment, if one uses the &quot;20 agents&quot; script, the respective environment must be present.</p>
 <h2 id="parameters">Parameters</h2>
 <ul>
 <li>global
@@ -121,9 +127,12 @@ epsilon_min        = 0.03</code></pre>
 148 2.389999946579337 1.3574999696575105 0.009999999776482582 0.03999999910593033 61715 0.17969999999967967
 149 2.5199999436736107 1.3801999691501259 0.009999999776482582 0.03999999910593033 62138 0.17719999999967717
 ...</code></pre>
+<h4 id="amendment-2018-12-11-version-2-2">Amendment 2018-12-11 (Version 2)</h4>
+<p>The output for the 20- agents version is sligthly different - instead of the simple score (sum of rewards), we list the average score (accross the 20 agents per episode) - instead of the minimum step- reward, we list the minimum score (accross the 20 agents per episode) - instead of the maximum step-rewards, we list the maximum score (accross the 20 agents per episode)</p>
 <h1 id="the-solution">The solution</h1>
-<p>To by big disappointment, my agent did not reach the target score of 30. I think however, that there is a bug in the environemt or a funny dependency so that the rewards received are much smaller. I did NOT observe a reward of 0.1 per time step, but my agent only got rewards between 0.01 and 0.04 per time step.</p>
+<p>To my big disappointment, my agent did not reach the target score of 30. I think however, that there is a bug in the environemt or a funny dependency so that the rewards received are much smaller. I did NOT observe a reward of 0.1 per time step, but my agent only got rewards between 0.01 and 0.04 per time step.</p>
 <p>Since the possible rewards per time step were much smaller, and if the simulation is run in show mode with the models e.g. for the &quot;test09.ini&quot; command file one can clearly see, that the agent has learned to stay in the target area, my solution should be considered to be meeting the criteria.</p>
+<p>The simulation run did yield a sustained score (last 100 episodes average) of well above 4, and since the the rewards per time step were smaller than promised by an order of magnitude, I consider the task solved.</p>
 <h2 id="graph">Graph</h2>
 <p>The &quot;best&quot; simulation run was the &quot;test09&quot; one, as can be seen in:</p>
 <div class="figure">
@@ -133,6 +142,14 @@ epsilon_min        = 0.03</code></pre>
 <p>One should be able to replicate the result by running:</p>
 <pre><code>python ms_drlndcc_pr.py test09.ini</code></pre>
 <p>See the actual project report for details.</p>
+<h3 id="amendment-2018-12-11-version-2-3">Amendment 2018-12-11 (Version 2)</h3>
+<p>TODO</p>
+<div class="figure">
+<img src="test10_20.png" alt="My solution" />
+<p class="caption">My solution</p>
+</div>
+<p>One should be able to replicate the result by running:</p>
+<pre><code>python ms_drlndcc_pr_20.py test10_20.ini</code></pre>
 <h1 id="misc">Misc</h1>
 <h2 id="zip--archives">ZIP- archives</h2>
 <h3 id="ini.zip">INI.zip</h3>

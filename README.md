@@ -20,6 +20,12 @@ The defined goal of the homework/ project is/was to achieve a "sustained" score 
 That means, that the algorithm/ the model should be able to average above score 30 for "the last 100 episodes"
 over a number of episodes.
 
+### Amendment 2018-12-11 (Version 2)
+Because my 1st attempt did not yield the sustained 30 score goal, I made some adjustments.
+Upon the advice of counsel, I modified my script to use the 20 Agents environment,
+instead of the single agent environment. More precisly, I copied my script into a new file
+called "python ms_drlndcc_pr_20.py" and made the adjustments there.
+
 # Dependencies
 The actual "program" (agent) is a python script that can be run from the command line.
 To be able to run it, python 3.6 must be installed.
@@ -41,7 +47,7 @@ This can be downloaded [for Linux](https://s3-us-west-1.amazonaws.com/udacity-dr
 # Running the script/ program/ agent
 To run the script from the command line (Linux), the dependencies mentioned must be installed and the contents
 of the "Reacher_Linux.zip" need to be unzipped in the same directory, where the actual script "ms_drlndcc_pr.py"
-resides, so that we have a subdirectory "Recher_Linux".
+resides, so that we have a subdirectory "Reacher_Linux".
 
     python ms_drlndcc_pr.py command-file.ini
 
@@ -51,6 +57,14 @@ the neural networks that approximate the actor and critic functions of the DDPG
 algorithm used. 
 the script can load predefined NN- models from a files and only simulate
 the Reacher- environment without learning. For more details see also the project- report.
+
+### Amendment 2018-12-11 (Version 2)
+To run the simulation with 20 agents instead of 1, use following instead:
+
+    python ms_drlndcc_pr_20.py command-file.ini
+
+Note: the "Reacher_Linux" subdirectory needs to include the correct version of the environment,
+if one uses the "20 agents" script, the respective environment must be present.
 
 ## Parameters
 - global
@@ -148,6 +162,12 @@ Example:
     149 2.5199999436736107 1.3801999691501259 0.009999999776482582 0.03999999910593033 62138 0.17719999999967717
     ...
 
+#### Amendment 2018-12-11 (Version 2)
+The output for the 20- agents version is sligthly different
+- instead of the simple score (sum of rewards), we list the average score (accross the 20 agents per episode)
+- instead of the minimum step- reward, we list the minimum score (accross the 20 agents per episode)
+- instead of the maximum step-rewards, we list the maximum score (accross the 20 agents per episode)
+
 # The solution
 To my big disappointment, my agent did not reach the target score of 30.
 I think however, that there is a bug in the environemt or a funny
@@ -175,6 +195,16 @@ One should be able to replicate the result by running:
     python ms_drlndcc_pr.py test09.ini
 
 See the actual project report for details.
+
+### Amendment 2018-12-11 (Version 2)
+TODO
+
+![My solution](test10_20.png)
+
+One should be able to replicate the result by running:
+
+    python ms_drlndcc_pr_20.py test10_20.ini
+
 
 # Misc
 ## ZIP- archives

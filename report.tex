@@ -44,11 +44,22 @@ The DDPG needs 4 approximations (actor, critic and the 2 target- variants of the
 that I modeled as neural networks with fully connected layers, ReLU layers,
 $Tanh$- layers and batch-norm ("BatchNorm1") layers using PyTorch.
 
+\subsection{Amendment 2018-12-11 (version 2)}
+My attempt to solve the 1 agent environment were not conclusivly successful
+and the reviewer suggested to try the 20 agent version.
+\\
+So I did that, the updates to the report are market by
+\textbf{Amendment 2018-12-11 (version 2)}.
+
 \section{Implementation}
 \subsection{Python script}
 The script is named $ms\_drlndcc\_pr.py$ and must be invoked from the command
 line with exactly one parameter, the name of the ".ini"- file (a.k.a. command file),
 that has all the parameters.
+\\
+\textbf{Amendment 2018-12-11 (version 2):} I implemented an additional variant
+of the script for the 20 agent version of the \enquote{Reacher} environment
+called $ms\_drlndcc\_pr\_20.py$.
 
 \paragraph{Parameters}
 The parameters listed in the command file come in various sections. The basic format
@@ -228,6 +239,9 @@ a file-name from which to read all the parameters governing the algorithm.
 \\
 Example:\\
 \texttt{python ms\_drlndcc\_pr.py test05.ini}
+\\
+\textbf{Amendment 2018-12-11 (version 2):} for the 20 agent version ...\\
+\texttt{python ms\_drlndcc\_pr\_20.py test05\_20.ini}
 
 \subsection{Loading and saving models/ pretraining}
 The script is able to save the model- states of the neural networks as well as
@@ -309,6 +323,10 @@ location given in the instructions; this can not be the source of this problem
 I very purposely let my script print out the maximum and minimum reward
 (other than zero) returned by the environment per step for each episode,
 and the typical values are $0.039999999...$ and $0.009999999...$, but never $0.1$.
+\\
+\textbf{Amendment 2018-12-11 (version 2):} as suggested by the reviewer, I
+tried the 20 agents environment instead of the 1 agent environment.
+TODO: describe in more detail (simulation still running)
 
 \subsection{General remarks}
 I had some problems to get to the point where my implementation would yield
@@ -327,6 +345,9 @@ to start with, I realize in hindsight).
 
 \subsection{Results of selected simulation runs}
 
+\textbf{Amendment 2018-12-11 (version 2):} I added the results for the two
+simulations with the 20 agents variant.
+
 \paragraph{Command files/ INI- files}
 Each command file (a.k.a. INI- file) represents one \textit{experiment} (program/ script- run).
 See the list below for an overview of these experiments/ command files
@@ -344,13 +365,16 @@ $test09b.ini$ & \makecell[tl]{continuation of $test09.ini$, uses model \\ from l
 $test09c.ini$ & \makecell[tl]{continuation of $test09.ini$, uses model \\ from latter as pre-training \\ different hyper-parameters} \\
 $test09d.ini$ & \makecell[tl]{continuation of $test09.ini$, uses model \\ from latter as pre-training \\ different hyper-parameters} \\
   \hline
+$test10_20.ini$ & \makecell[tl]{with parameters suggested by the reviewer \\ for the 20 agents variant} \\
+$test10_20b.ini$ & \makecell[tl]{with some other parameters \\ for the 20 agents variant} \\
+  \hline
 \end{tabular}
 
 \paragraph{Graph- plots}
 
 \textit{(All plots are score per episode plus average score of the last 100 episodes per episode.
-All plots are ploted with the same x/y- max/min- values for comparability. Constant of
-4 is plotted as reference point.)}
+All plots for the same variant - 1 or 20 agents -are ploted with the same x/y- max/min- values
+for comparability. Constants of 4 and 30 are plotted as reference points.)}
 \\
 \begin{tabular}{ |c|c| }
   \hline
@@ -369,6 +393,14 @@ All plots are ploted with the same x/y- max/min- values for comparability. Const
   \texttt{test09c.ini} & \texttt{test09d.ini} \\
   \hline
   \includegraphics[scale=0.35]{test09c.png} & \includegraphics[scale=0.35]{test09d.png} \\
+  \hline
+\end{tabular}
+\\
+\begin{tabular}{ |c|c| }
+  \hline
+  \texttt{test10\_20.ini} & \texttt{test10\_20b.ini} \\
+  \hline
+  \includegraphics[scale=0.35]{test10_20.png} & \includegraphics[scale=0.35]{test10_20b.png} \\
   \hline
 \end{tabular}
 
@@ -397,6 +429,9 @@ at the end, but since \texttt{test09b.ini}, \texttt{test09c.ini} and
 seem to linger on the level reached or even sligthly go down, the score
 reached seems to be about the best value I can get with my algorithm;
 Thus about a sustained $5.3$- score is what I get.
+\\
+\textbf{Amendment 2018-12-11 (version 2):} TODO: discuss results
+of the simulations for the 20 agents variant.
 
 \subsection{Result models and data}
 The neural network models for the simulations can be found in the respective
