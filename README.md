@@ -20,11 +20,29 @@ The defined goal of the homework/ project is/was to achieve a "sustained" score 
 That means, that the algorithm/ the model should be able to average above score 30 for "the last 100 episodes"
 over a number of episodes.
 
-### Amendment 2018-12-11 (Version 2)
+### Amendment 2018-12-18 (Version 3)
 Because my 1st attempt did not yield the sustained 30 score goal, I made some adjustments.
 Upon the advice of counsel, I modified my script to use the 20 Agents environment,
-instead of the single agent environment. More precisly, I copied my script into a new file
-called "python ms_drlndcc_pr_20.py" and made the adjustments there.
+instead of the single agent environment.  
+I ran some simulations with the 20 Agents variant, but could get nowhere near
+the target 30 score still; I therefor abandonend the 20 Agents variant.  
+
+I then modified the one agent variant of my script to use a more conventional
+version of priority replay, not based on the actual rewards, but on the
+"unexpectedness" of the transition. I also implemented a few additional flags
+for the configuration, like flags whether or not to use priority replay at all
+or use batch-norm layers or grad-norm clipping for the critic- optimization step.  
+After again running a bunch of different configuration parameter sets through
+the simulation I finally found a configuration that would yield the desired
+target score (30). The configuration was one without without
+batch-norm layers (I did not expect that, because I had read often, that
+these layers would be essential) plus it would not "hold" the above 30 score for a number of
+episodes.  
+I then experimented with various configurations, that would use the before
+mentioned one as pre-training (by loading the models and replay-buffer) but
+change other parameters.
+I was surprised to find, that a configuration without priority-replay
+and without grad-norm clipping worked best and would yield a sustained score 30.
 
 # Dependencies
 The actual "program" (agent) is a python script that can be run from the command line.
@@ -58,15 +76,20 @@ algorithm used.
 the script can load predefined NN- models from a files and only simulate
 the Reacher- environment without learning. For more details see also the project- report.
 
-### Amendment 2018-12-11 (Version 2)
-To run the simulation with 20 agents instead of 1, use following instead:
-
-    python ms_drlndcc_pr_20.py command-file.ini
-
-Note: the "Reacher_Linux" subdirectory needs to include the correct version of the environment,
-if one uses the "20 agents" script, the respective environment must be present.
-
 ## Parameters
+### Amendment 2018-12-18 (Version 3)
+Since the prio- replay is not based on rewards any longer and I implemented some
+additional boolean config-parameters, there are some changes to the parameters.
+
+### Old Parameters not in Version 3
+
+- hyperparameters
+    - replay prioritization
+        - reward_gamma: reward- gamma discount factor
+        - reward_offset: importance offset
+        - no_reward_rm_prob: probability for transition with zero- reward to enter replay- memory
+
+### Current 
 - global
     - runlog: name of the logfile to use
 - mode
@@ -79,6 +102,7 @@ if one uses the "20 agents" script, the respective environment must be present.
     - h2: second size- parameter for the actor-NN- model
     - c_h1: first size- parameter for the critic- NN- model
     - c_h2: second size- parameter for the critic-NN- model
+    - batch_norm: whether to use batch norm layers (flag)
     - load_file: name- fragment for the files from which to load models (if any)
     - save_file: name- fragment for the files to save the models to
 - hyperparameters
@@ -89,14 +113,12 @@ if one uses the "20 agents" script, the respective environment must be present.
     - replay_batchsize: number of transitions to sample per optimizing step
     - replay_steps: simulation-steps between  each optimization run
     - optimizer_steps: no. of batch optimization-steps  per optimization run
-    - learning_rate: the learning rate
+    - learning_rate: the learning rate for the actor optimizer
+    - learning_rate_c: the learning rate for the critic optimizer
     - gamma: DPPG gamma factor
-    - tau: tau (soft target update)
-    - replay prioritization
-        - reward_gamma: reward- gamma discount factor
-        - reward_offset: importance offset
-        - no_reward_rm_prob: probability for transition with zero- reward to enter replay- memory
-    - sample action noise
+    - grad_norm_clip: grad-norm clipping treshold for the critic (smaller 0.0 means no clipping)
+    - prio_replay:  whether to use priority replay (flag)
+    - tau: tau (soft target update)    - sample action noise
         - epsilon_start: start value for epsilon
         - epsilon_delta: value to subtract from epsilo  for each optimization step
         - epsilon_min: minimum/ final value for epsilon
@@ -104,40 +126,45 @@ if one uses the "20 agents" script, the respective environment must be present.
         - noise_sigma: sigma for noise process
 
 ### Example command-file contents
+
     [global]
-    runlog = test09.log
+    runlog = test15c4.log
     
     [mode]
     train = True
     show = False
     
     [rand]
-    seed = 34175
+    seed = 341919
     
     [model]
-    h1 = 167
-    h2 = 97
-    c_h1 = 131
-    c_h2 = 57
-    save_file = test09
+    h1         = 399
+    h2         = 301
+    c_h1       = 401
+    c_h2       = 299
+    save_file  = test15c4
+    load_file  = test15
+    batch_norm = False
     
     [hyperparameters]
-    episodes           = 350
-    warmup_episodes    = 20
+    episodes           = 200
+    warmup_episodes    = 0
     warmup_episodes_f  = 0.3
     replay_buffersize  = 100000
     replay_batchsize   = 128
-    replay_steps       = 20
-    gamma              = 0.98
+    replay_steps       = 1
+    gamma              = 0.99
     learning_rate      = 0.001
-    optimizer_steps    = 5
+    learning_rate_c    = 0.0001
+    optimizer_steps    = 1
     tau                = 0.001
-    reward_gamma       = 0.98
-    reward_offset      = 0.01
-    no_reward_rm_prob  = 0.4
-    epsilon_start      = 0.5
-    epsilon_delta      = 0.00001
-    epsilon_min        = 0.03
+    epsilon_start      = 0.4
+    epsilon_delta      = 0.000001
+    epsilon_min        = 0.3
+    noise_theta        = 0.15
+    noise_sigma        = 0.2
+    grad_norm_clip     = -1.0
+    prio_replay        = False
 
 ## Output
 ### Logfile
@@ -162,13 +189,7 @@ Example:
     149 2.5199999436736107 1.3801999691501259 0.009999999776482582 0.03999999910593033 62138 0.17719999999967717
     ...
 
-#### Amendment 2018-12-11 (Version 2)
-The output for the 20- agents version is sligthly different
-- instead of the simple score (sum of rewards), we list the average score (accross the 20 agents per episode)
-- instead of the minimum step- reward, we list the minimum score (accross the 20 agents per episode)
-- instead of the maximum step-rewards, we list the maximum score (accross the 20 agents per episode)
-
-# The solution
+# The solution (Version 1) - [actually was not a solution]
 To my big disappointment, my agent did not reach the target score of 30.
 I think however, that there is a bug in the environemt or a funny
 dependency so that the rewards received are much smaller. I did NOT
@@ -196,15 +217,29 @@ One should be able to replicate the result by running:
 
 See the actual project report for details.
 
-### Amendment 2018-12-11 (Version 2)
-TODO
+# The solution (Version 3) - 2018-12-18
+The first version of my implementation could not reach the target score of 30;
+the second version (with 20 Agents) could not as well.
 
-![My solution](test10_20.png)
+After altering the 1 agent variant again in some respects, I did find a
+combination of parameters that resulted in the desired learning
+(see "test15.ini"). It reached score 30 but not in a sustained fashion.
+But when I use the resulting models as pretraining, a different set of
+hyper- parameters ("test15c4.ini") will result in a sustained 30-score.
+
+## Graph
+
+![My solution II pretraining](test15.png)
+
+![My solution II](test15c4.png)
 
 One should be able to replicate the result by running:
 
-    python ms_drlndcc_pr_20.py test10_20.ini
+    python ms_drlndcc_pr.py test15.ini
 
+and after the first finished
+
+    python ms_drlndcc_pr.py test15c4.ini
 
 # Misc
 ## ZIP- archives
@@ -219,6 +254,9 @@ Pictures created with gnuplot from the log-files and used for the project report
 
 ### MODELS.zip
 The NN- models resulting from the simulation runs.
+
+#### Amendment 2018-12-18 (Version 3)
+Additional ZIP- archives for the "version 3" solution are marked with "v3".
 
 ## See also
 * report.pdf: the project report, contains additional information

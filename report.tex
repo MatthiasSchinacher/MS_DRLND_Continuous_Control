@@ -8,7 +8,7 @@
 \usepackage{csquotes}
 
 \title{DRLND Continuous Control- Report}
-\date{2018-12-09}
+\date{2018-12-18}
 \author{Matthias Schinacher matthias.schinacher@googlemail.com}
 
 \begin{document}
@@ -44,12 +44,13 @@ The DDPG needs 4 approximations (actor, critic and the 2 target- variants of the
 that I modeled as neural networks with fully connected layers, ReLU layers,
 $Tanh$- layers and batch-norm ("BatchNorm1") layers using PyTorch.
 
-\subsection{Amendment 2018-12-11 (version 2)}
-My attempt to solve the 1 agent environment were not conclusivly successful
+\subsection{Amendment 2018-12-18 (Version 3)}
+My attempt to solve the 1 agent environment were initially not conclusivly successful
 and the reviewer suggested to try the 20 agent version.
 \\
-So I did that, the updates to the report are market by
-\textbf{Amendment 2018-12-11 (version 2)}.
+So I did that, but sadly not very successful. Thus I abandoned the 20 Agents
+approach and modified the single agent variant; the respective updates
+to the report are marked by \textbf{Amendment 2018-12-18 (Version 3)}.
 
 \section{Implementation}
 \subsection{Python script}
@@ -57,9 +58,23 @@ The script is named $ms\_drlndcc\_pr.py$ and must be invoked from the command
 line with exactly one parameter, the name of the ".ini"- file (a.k.a. command file),
 that has all the parameters.
 \\
-\textbf{Amendment 2018-12-11 (version 2):} I implemented an additional variant
-of the script for the 20 agent version of the \enquote{Reacher} environment
-called $ms\_drlndcc\_pr\_20.py$.
+\textbf{Amendment 2018-12-18 (Version 3):} I changed the implementation
+of the script sligtly; the changes (plus one or two bug-fixes) were:
+\begin{itemize}
+\item Priority Replay: changed the implementation to a more traditional approach
+of using the \enquote{unexpectedness} of the transition as the basis instead
+of the the rewards.
+\item Additional flags and parameters: I added flags to be able to turn on/off
+priority-replay, batch-norm layers in the model and gradient-norm clipping
+for the critic optimization.
+\end{itemize}
+
+\textit{The $\delta$ of the prio-replay, upon which the priority of a transition
+is based, now uses the difference between the state-action value the critic
+computes and the estimation of this value by the target critic using the reward
+and the target critics state-action value of the subsequent state.\\
+The prio-replay is a partial implementation of the \enquote{PRIORITIZED EXPERIENCE REPLAY}
+paper by Tom Schaul, John Quan, Ioannis Antonoglou and David Silver}
 
 \paragraph{Parameters}
 The parameters listed in the command file come in various sections. The basic format
@@ -98,6 +113,11 @@ epsilon\_start      = 0.3 \\
 epsilon\_delta      = 0.000001 \\
 epsilon\_min        = 0.0031
 }
+\\
+\textbf{Amendment 2018-12-18 (Version 3)}\\
+Note that the parameters \enquote{reward\_gamma}, \enquote{reward\_offset}
+and \enquote{no\_reward\_rm\_prob} are now obsolete, since the prio-replay is not
+based on the transition-rewards as before.
 
 \normalsize
 
@@ -156,6 +176,34 @@ it determines the value given to the unity- environment as the parameter $train\
 \\
 The $train$- parameter of the script determines, if the algorithm will be learning
 from new transitions.
+\\
+
+\textbf{Amendment 2018-12-18 (Version 3)}\\
+\enquote{reward\_gamma}, \enquote{reward\_offset} and \enquote{no\_reward\_rm\_prob}
+are no longer used.
+\\
+New and changed parameters:
+\small
+\begin{tabular}{ |l|r|l|c| }
+  \hline
+  \multicolumn{4}{|c|}{Parameters} \\
+  \hline
+Section & Name & Description & Default \\
+  \hline
+\multicolumn{4}{|l|}{\textbf{model}} \\
+               & batch\_norm & \makecell[tl]{flag, whether batch-norm \\ layers are used} & \texttt{False} \\
+\multicolumn{4}{|l|}{\textbf{hyperparameters}} \\
+               & learning\_rate & the learning rate for the actor & \texttt{0.0001} \\
+               & learning\_rate\_c & the learning rate for the critic & \texttt{0.001} \\
+               & grad\_norm\_clip & \makecell[tl]{threshold for grad-norm clipping; \\ negative means no clipping} & \texttt{-1.0} \\
+\multicolumn{4}{|c|}{\textit{replay prioritization}} \\
+               & prio\_replay & flag, whether to use prio-replay & \texttt{True} \\
+\multicolumn{4}{|c|}{\textit{sample action noise}} \\
+               & noise\_sigma & $\sigma$ for noise process & \texttt{0.2} \\
+%               &  &  & \texttt{} \\
+\hline
+\end{tabular}
+\normalsize
 
 \subsection{Dependencies}
 The script has runtime dependencies; these are the ones as described in the
@@ -193,6 +241,18 @@ for sampling of zero reward transitions)
 \item the rewards used to compute the sampling probability are discounted by
 the reward- $\gamma$ factor in each optimization run to favor newer transitions.
 \end{itemize}
+
+\textbf{Amendment 2018-12-18 (Version 3)}\\
+The described scheme for the prio-replay is no longer used; instead the prio-replay
+is now based on the difference between the state-action value the critic
+computes and the estimation of this value by the target critic using the reward
+and the target critics state-action value of the subsequent state. This is the
+approach were prioritization follows the \enquote{unexpectedness} of the transition.
+\\
+The prio-replay is a partial implementation of the \enquote{PRIORITIZED EXPERIENCE REPLAY}
+paper by Tom Schaul, John Quan, Ioannis Antonoglou and David Silver.
+By using the \textit{prio\_replay} flag/ parameter, replay prioritization can be
+turned on/off per simulation run.
 
 \paragraph{Warmup episodes}
 The script/ program computes the action values to be used randomly for
@@ -233,15 +293,16 @@ input after the first ReLU by concatinating it to the ReLU layers output
 (action size and 1, cause the critic must yield a value), there are 2
 choosable sizes for the actor and critic each (hence the parameters).
 
+\textbf{Amendment 2018-12-18 (Version 3)}\\
+By using the \textit{batch\_norm} flag/ parameter, the layout can be changed
+per simulation run to not include the batch-norm layers.
+
 \subsection{Usage}
 The script is invoked from the command line as a python script with one parameter,
 a file-name from which to read all the parameters governing the algorithm.
 \\
 Example:\\
 \texttt{python ms\_drlndcc\_pr.py test05.ini}
-\\
-\textbf{Amendment 2018-12-11 (version 2):} for the 20 agent version ...\\
-\texttt{python ms\_drlndcc\_pr\_20.py test05\_20.ini}
 
 \subsection{Loading and saving models/ pretraining}
 The script is able to save the model- states of the neural networks as well as
@@ -324,9 +385,13 @@ I very purposely let my script print out the maximum and minimum reward
 (other than zero) returned by the environment per step for each episode,
 and the typical values are $0.039999999...$ and $0.009999999...$, but never $0.1$.
 \\
-\textbf{Amendment 2018-12-11 (version 2):} as suggested by the reviewer, I
-tried the 20 agents environment instead of the 1 agent environment.
-TODO: describe in more detail (simulation still running)
+\textbf{Amendment 2018-12-18 (Version 3):}\\
+as suggested by the reviewer, I tried the 20 agents environment instead
+of the 1 agent environment, but could not make that score the 30.\\
+I then abandoned the 20 agents again and changed the prio-replay
+implementation and changed some other minor stuff, mostly to have the option
+of turning off some features per simulation run. And \textbf{voila}, I came
+across a set of parameters that got me to the desired score of 30!
 
 \subsection{General remarks}
 I had some problems to get to the point where my implementation would yield
@@ -342,11 +407,11 @@ I got to this point, not all of which are reflected in the final version
 of the python script since I deleted them after they did not yield
 the results I had hoped (plus one or two of these ideas were clearly bonkers
 to start with, I realize in hindsight).
+\\
+In the end I did find the solution yielding score 30, but there was also some
+measure of luck involved.
 
 \subsection{Results of selected simulation runs}
-
-\textbf{Amendment 2018-12-11 (version 2):} I added the results for the two
-simulations with the 20 agents variant.
 
 \paragraph{Command files/ INI- files}
 Each command file (a.k.a. INI- file) represents one \textit{experiment} (program/ script- run).
@@ -365,15 +430,12 @@ $test09b.ini$ & \makecell[tl]{continuation of $test09.ini$, uses model \\ from l
 $test09c.ini$ & \makecell[tl]{continuation of $test09.ini$, uses model \\ from latter as pre-training \\ different hyper-parameters} \\
 $test09d.ini$ & \makecell[tl]{continuation of $test09.ini$, uses model \\ from latter as pre-training \\ different hyper-parameters} \\
   \hline
-$test10_20.ini$ & \makecell[tl]{with parameters suggested by the reviewer \\ for the 20 agents variant} \\
-$test10_20b.ini$ & \makecell[tl]{with some other parameters \\ for the 20 agents variant} \\
-  \hline
 \end{tabular}
 
 \paragraph{Graph- plots}
 
 \textit{(All plots are score per episode plus average score of the last 100 episodes per episode.
-All plots for the same variant - 1 or 20 agents -are ploted with the same x/y- max/min- values
+All plots are plotted with the same x/y- max/min- values
 for comparability. Constants of 4 and 30 are plotted as reference points.)}
 \\
 \begin{tabular}{ |c|c| }
@@ -395,12 +457,33 @@ for comparability. Constants of 4 and 30 are plotted as reference points.)}
   \includegraphics[scale=0.35]{test09c.png} & \includegraphics[scale=0.35]{test09d.png} \\
   \hline
 \end{tabular}
+
+\paragraph{Command files/ INI- files - 2018-12-18 (Version 3)}
+:\\
+\begin{tabular}{ |l|l| }
+  \hline
+Filename & Description \\
+  \hline
+$test15.ini$ & \makecell[tl]{first simulation with episodes \\ that actually had score above 30} \\
+$test15c3.ini$ & \makecell[tl]{continuation of $test15.ini$, uses model \\ from latter as pre-training \\ not with sustained score 30} \\
+$test15c4.ini$ & \makecell[tl]{continuation of $test15.ini$, uses model \\ from latter as pre-training \\ with sustained score 30! \\ \textbf{The actual solution!}} \\
+  \hline
+\end{tabular}
+
+\paragraph{Graph- plots - 2018-12-18 (Version 3)}
+
+\textit{(All plots are score per episode plus average score of the last 100 episodes per episode.
+All plots are with comparable x/y- max/min- values for comparability. Constants of 4 and 30 are plotted as reference points.)}
 \\
 \begin{tabular}{ |c|c| }
   \hline
-  \texttt{test10\_20.ini} & \texttt{test10\_20b.ini} \\
+  \texttt{test15.ini} & \texttt{test15c3.ini} \\
   \hline
-  \includegraphics[scale=0.35]{test10_20.png} & \includegraphics[scale=0.35]{test10_20b.png} \\
+  \includegraphics[scale=0.35]{test15.png} & \includegraphics[scale=0.35]{test15c3.png} \\
+  \hline
+  \texttt{test15c4.ini [actual solution!]} & \\
+  \hline
+  \includegraphics[scale=0.35]{test15c4.png} &  \\
   \hline
 \end{tabular}
 
@@ -430,8 +513,27 @@ seem to linger on the level reached or even sligthly go down, the score
 reached seems to be about the best value I can get with my algorithm;
 Thus about a sustained $5.3$- score is what I get.
 \\
-\textbf{Amendment 2018-12-11 (version 2):} TODO: discuss results
-of the simulations for the 20 agents variant.
+\textbf{Amendment 2018-12-18 (Version 3):}
+I was somewhat surprised, that the actual successful simulations would not
+need batch-normalization, as this was strongly hinted at by some.
+\\
+Even more surprising was, that the actual configuration, that would maintain
+the above 30 score for long enough did not use prio-replay or grad-clipping,
+though the simulation that created the pre-trained models actually did use them.
+\\
+I would suspect, that the whole solution is very sensitive to \textbf{some} of
+the hyper- parameters, and that especially the sizes of the network and the
+magnitude of the sampling noise are important.
+\\
+I would suggest, that the latter was the decisive difference between
+\texttt{test15c3.ini}, which could not deliver a sustained score of 30,
+and \texttt{test15c4.ini}, which not only could, but had an
+\textbf{average score of the last 100 episodes} of above 30 for almost
+100 episodes. Thus the criteria is clearly fulfilled.
+\\
+Though the \texttt{test15c4.ini} simulation run clearly met the goal, the
+score deteriorates sligthly over time; I guess this configuration does
+not have the perfect parameter-set/ configuration just yet.
 
 \subsection{Result models and data}
 The neural network models for the simulations can be found in the respective

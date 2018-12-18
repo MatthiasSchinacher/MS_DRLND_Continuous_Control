@@ -88,22 +88,20 @@ REPLAY_BUFFERSIZE = int(99000)   # replay buffer/memory- size (training only)
 REPLAY_BATCHSIZE = int(128)      # batch size for replay (training only)
 REPLAY_STEPS = int(20)           # replay transisitions- batch each x steps (training only)
 GAMMA = float(0.99)              # gamma- parameter (training only)
-LEARNING_RATE = float(0.001)     # optimizing actor model (training only)
-OPTIMIZER_STEPS = 10             # optimizing actor model (training only)
+LEARNING_RATE = float(0.0001)    # optimizing actor model (training only)
+LEARNING_RATE_C = float(0.001)   # optimizing critic model (training only)
+OPTIMIZER_STEPS = 10             # optimizer steps (training only)
 TAU = float(0.001)               # soft update target networks (training only)
-
-# we have a form a prio- replay based on the rewards of the transitions
-# with each replay batch we discount the rewards, so we prior. new samples
-REWARD_GAMMA = float(0.99)       # discount-factor for rewards
-REWARD_OFFSET = float(0.001)     # offset used for all rewards to compute replay- probabilities
-NO_REWARD_RM_PROB = float(0.25)  # probability of transition with no reward (zero) to enter the replay-buffer
 
 # noise- parameters
 EPSILON_START = float(0.5)       # start-value for epsilon (training and show- mode!)
 EPSILON_DELTA = float(0.00001)   # value to substract from delta (training only)
 EPSILON_MIN   = float(0.001)     # min value for epsilon
 NOISE_THETA = float(0.15)
-NOISE_SIGMA = float(0.02)
+NOISE_SIGMA = float(0.2)
+
+PRIO_REPLAY = True
+GRAD_NORM_CLIP = float(1.0)
 
 # overwrite defaults
 if 'hyperparameters' in config:
@@ -116,12 +114,9 @@ if 'hyperparameters' in config:
     REPLAY_STEPS      = int(hp['replay_steps'])      if 'replay_steps'      in hp else REPLAY_STEPS
     GAMMA             = float(hp['gamma'])           if 'gamma'             in hp else GAMMA
     LEARNING_RATE     = float(hp['learning_rate'])   if 'learning_rate'     in hp else LEARNING_RATE
+    LEARNING_RATE_C   = float(hp['learning_rate_c']) if 'learning_rate_c'   in hp else LEARNING_RATE_C
     OPTIMIZER_STEPS   = int(hp['optimizer_steps'])   if 'optimizer_steps'   in hp else OPTIMIZER_STEPS
     TAU               = float(hp['tau'])             if 'tau'               in hp else TAU
-
-    REWARD_GAMMA      = float(hp['reward_gamma'])      if 'reward_gamma'      in hp else REWARD_GAMMA
-    REWARD_OFFSET     = float(hp['reward_offset'])     if 'reward_offset'     in hp else REWARD_OFFSET
-    NO_REWARD_RM_PROB = float(hp['no_reward_rm_prob']) if 'no_reward_rm_prob' in hp else NO_REWARD_RM_PROB
 
     EPSILON_START     = float(hp['epsilon_start'])   if 'epsilon_start'     in hp else EPSILON_START
     EPSILON_DELTA     = float(hp['epsilon_delta'])   if 'epsilon_delta'     in hp else EPSILON_DELTA
@@ -129,11 +124,15 @@ if 'hyperparameters' in config:
     NOISE_THETA       = float(hp['noise_theta'])     if 'noise_theta'       in hp else NOISE_THETA
     NOISE_SIGMA       = float(hp['noise_sigma'])     if 'noise_sigma'       in hp else NOISE_SIGMA
 
+    PRIO_REPLAY       = (True if booleanpattern.match(hp['prio_replay']) else False) if 'prio_replay' in hp else BATCH_NORM
+    GRAD_NORM_CLIP    = float(hp['grad_norm_clip'])  if 'grad_norm_clip'    in hp else GRAD_NORM_CLIP
+
 # model- defaults (only if model is not loaded from file)
 MODEL_H1 = int(10)     # hidden layer size 1
 MODEL_H2 = int(10)     # hidden layer size 2
 MODEL_C_H1 = int(10)   # hidden layer size 1, critic
 MODEL_C_H2 = int(10)   # hidden layer size 2, critic
+BATCH_NORM = False
 
 # filenames for loading the models etc.
 load_file = 'DDPG' if not TRAIN else None # only default when not training
@@ -147,6 +146,7 @@ if 'model' in config:
     MODEL_H2   = int(m['h2'])    if 'h2'        in m else MODEL_H2
     MODEL_C_H1 = int(m['c_h1'])  if 'c_h1'      in m else MODEL_C_H1
     MODEL_C_H2 = int(m['c_h2'])  if 'c_h2'      in m else MODEL_C_H2
+    BATCH_NORM = (True if booleanpattern.match(m['batch_norm']) else False)  if 'batch_norm' in m else BATCH_NORM
     load_file = m['load_file']   if 'load_file' in m else load_file
     save_file = m['save_file']   if 'save_file' in m else save_file
 
@@ -163,23 +163,24 @@ rl.write('# REPLAY_BATCHSIZE:  {}\n'.format(REPLAY_BATCHSIZE))
 rl.write('# REPLAY_STEPS:      {}\n'.format(REPLAY_STEPS))
 rl.write('# GAMMA:             {}\n'.format(GAMMA))
 rl.write('# LEARNING_RATE:     {}\n'.format(LEARNING_RATE))
+rl.write('# LEARNING_RATE_C:   {}\n'.format(LEARNING_RATE_C))
 rl.write('# OPTIMIZER_STEPS:   {}\n'.format(OPTIMIZER_STEPS))
 rl.write('# TAU:               {}\n#\n'.format(TAU))
-rl.write('# REWARD_GAMMA:      {}\n'.format(REWARD_GAMMA))
-rl.write('# REWARD_OFFSET:     {}\n'.format(REWARD_GAMMA))
-rl.write('# NO_REWARD_RM_PROB: {}\n#\n'.format(NO_REWARD_RM_PROB))
 rl.write('# EPSILON_START:     {}\n'.format(EPSILON_START))
 rl.write('# EPSILON_DELTA:     {}\n'.format(EPSILON_DELTA))
 rl.write('# EPSILON_MIN:       {}\n'.format(EPSILON_MIN))
 rl.write('# NOISE_THETA:       {}\n'.format(NOISE_THETA))
 rl.write('# NOISE_SIGMA:       {}\n#\n'.format(NOISE_SIGMA))
+rl.write('# PRIO_REPLAY:       {}\n'.format(PRIO_REPLAY))
+rl.write('# GRAD_NORM_CLIP:    {}\n#\n'.format(GRAD_NORM_CLIP))
 rl.write('#   -- model\n')
 rl.write('# H1:          {}\n'.format(MODEL_H1))
 rl.write('# H2:          {}\n'.format(MODEL_H2))
 rl.write('# H1 (critic): {}\n'.format(MODEL_C_H1))
 rl.write('# H2 (critic): {}\n'.format(MODEL_C_H2))
-rl.write('# load_file: {}\n'.format(load_file))
-rl.write('# save_file: {}\n'.format(save_file))
+rl.write('# batch_norm:  {}\n'.format(BATCH_NORM))
+rl.write('# load_file:   {}\n'.format(load_file))
+rl.write('# save_file:   {}\n'.format(save_file))
 rl.flush()
 
 # * ---------------- *
@@ -201,7 +202,7 @@ class MSScaling(torch.nn.Module):
         return self.factor * input
 
 class MSA(torch.nn.Module):
-    def __init__(self, action_size, state_size, size1=111, size2=87, flag_batch_norm=True):
+    def __init__(self, action_size, state_size, size1=111, size2=87, flag_batch_norm=False):
         super(MSA, self).__init__()
         self.ll1 = torch.nn.Linear(state_size, size1)
         self.r1  = torch.nn.ReLU()
@@ -212,9 +213,7 @@ class MSA(torch.nn.Module):
         
         self.flag_batch_norm = flag_batch_norm
         if flag_batch_norm:
-            self.batch1 = torch.nn.BatchNorm1d(state_size)
-            self.batch2 = torch.nn.BatchNorm1d(size1)
-            self.batch3 = torch.nn.BatchNorm1d(size2)
+            self.batch = torch.nn.BatchNorm1d(state_size)
 
         torch.nn.init.uniform_(self.ll1.weight,-0.1,0.1)
         torch.nn.init.constant_(self.ll1.bias,0.1)
@@ -225,14 +224,12 @@ class MSA(torch.nn.Module):
 
     def forward(self, state):
         if self.flag_batch_norm:
-#            return self.th(self.ll3(self.batch3(self.r2(self.ll2(self.batch2(self.r1(self.ll1(self.batch1(state)))))))))
-#            return self.th(self.ll3(self.batch3(self.r2(self.ll2(self.r1(self.ll1(state)))))))
-            return self.th(self.ll3(self.r2(self.ll2(self.r1(self.ll1(self.batch1(state)))))))
+            return self.th(self.ll3(self.r2(self.ll2(self.r1(self.ll1(self.batch(state)))))))
         else:
             return self.th(self.ll3(self.r2(self.ll2(self.r1(self.ll1(state))))))
 
 class MSC(torch.nn.Module):
-    def __init__(self, action_size, state_size, size1=111, size2=87, flag_batch_norm=True):
+    def __init__(self, action_size, state_size, size1=111, size2=87, flag_batch_norm=False):
         super(MSC, self).__init__()
         self.ll1 = torch.nn.Linear(state_size, size1)
         self.r1  = torch.nn.ReLU()
@@ -243,7 +240,6 @@ class MSC(torch.nn.Module):
         self.flag_batch_norm = flag_batch_norm
         if flag_batch_norm:
             self.batch = torch.nn.BatchNorm1d(state_size)
-            self.batch3 = torch.nn.BatchNorm1d(size2)
 
         torch.nn.init.uniform_(self.ll1.weight,-0.1,0.1)
         torch.nn.init.constant_(self.ll1.bias,0.1)
@@ -257,8 +253,6 @@ class MSC(torch.nn.Module):
         if self.flag_batch_norm:
             x = self.r1(self.ll1(self.batch(x)))
             return self.ll3(self.r2(self.ll2(torch.cat((x, action), dim=1))))
-            #x = self.r1(self.ll1(x))
-            #return self.ll3(self.batch3(self.r2(self.ll2(torch.cat((x, action), dim=1)))))
         else:
             x = self.r1(self.ll1(x))
             return self.ll3(self.r2(self.ll2(torch.cat((x, action), dim=1))))
@@ -281,17 +275,21 @@ if load_file:
     modelCt = torch.load(lf)
 else:
 # actor; function of state to action values
-    modelA = MSA(ACTION_SIZE,STATE_SIZE,MODEL_H1,MODEL_H2)
+    modelA = MSA(ACTION_SIZE,STATE_SIZE,MODEL_H1,MODEL_H2,flag_batch_norm=BATCH_NORM)
 # actor target; initialize with the same weights
-    modelAt = MSA(ACTION_SIZE,STATE_SIZE,MODEL_H1,MODEL_H2)
+    modelAt = MSA(ACTION_SIZE,STATE_SIZE,MODEL_H1,MODEL_H2,flag_batch_norm=BATCH_NORM)
     for tp, p in zip(modelAt.parameters(), modelA.parameters()):
-        tp.data.copy_(p.data)
+        #tp.data.copy_(p.data)
+        tp.detach_()
+        tp.copy_(p)
 # critic
-    modelC = MSC(ACTION_SIZE,STATE_SIZE,MODEL_C_H1,MODEL_C_H2)
+    modelC = MSC(ACTION_SIZE,STATE_SIZE,MODEL_C_H1,MODEL_C_H2,flag_batch_norm=BATCH_NORM)
 # critic target
-    modelCt = MSC(ACTION_SIZE,STATE_SIZE,MODEL_C_H1,MODEL_C_H2)
+    modelCt = MSC(ACTION_SIZE,STATE_SIZE,MODEL_C_H1,MODEL_C_H2,flag_batch_norm=BATCH_NORM)
     for tp, p in zip(modelCt.parameters(), modelC.parameters()):
-        tp.data.copy_(p.data)
+        #tp.data.copy_(p.data)
+        tp.detach_()
+        tp.copy_(p)
 
 # * ---------------- *
 #   loading the Reacher environment, loading the default brain (external)
@@ -311,7 +309,10 @@ if TRAIN:
     #   - only inserts at given index, if next index would be > size, start at 0
     #         => list entries 0..size-1 are occupied
     replay_memory = []   # actual replay memory
-    reward_memory = []   # reward_memory used to compute priority
+    replay_prio = [] # priority used to compute sampling probability
+    if PRIO_REPLAY:
+        priomax = 1.0
+        priosum = 0.0
     rm_size = 0          # number of entries in replay memory
     rm_next = 0          # next index to use for insert
     
@@ -324,159 +325,203 @@ if TRAIN:
                     rl.write('# .. loading replay-buffer/ reward-buffer from "{}"\n'.format(lf))
                     ( tmpm, tmpr ) = tmp
                     replay_memory = tmpm if REPLAY_BUFFERSIZE >= len(tmpm) else tmpm[0:REPLAY_BUFFERSIZE]
-                    reward_memory = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
+                    replay_prio = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
                     rm_size = len(replay_memory)
                     rm_next = rm_size if rm_size < REPLAY_BUFFERSIZE else 0
                 else:
                     rl.write('# .. [new] loading replay-buffer/ reward_buffer and rm_next from "{}"\n'.format(lf))
                     ( tmpm, tmpr, rm_next ) = tmp
                     replay_memory = tmpm if REPLAY_BUFFERSIZE >= len(tmpm) else tmpm[0:REPLAY_BUFFERSIZE]
-                    reward_memory = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
+                    replay_prio = tmpr if REPLAY_BUFFERSIZE >= len(tmpr) else tmpr[0:REPLAY_BUFFERSIZE]
                     rm_size = len(replay_memory)
+                    if rm_next >= rm_size:
+                        rm_next = 0
+            priomax = float(max(replay_prio))
+            priosum = float(sum(replay_prio))
 
 score_buffer = []
-noise = np.array([0.0,0.0,0.0,0.0])                # TODO: work with ACTION_SIZE
+noise = np.zeros( (1,ACTION_SIZE) )
 epsilon = EPSILON_START
 index_array   = [i for i in range(REPLAY_BUFFERSIZE)]
-r_steps = 0
+r_steps = REPLAY_STEPS # initialize big, so we replay the first chance we have
 
 rl.write('#\n# Episode Score average(last-100-Scores) MinReward MaxReward RMSize Epsilon\n')
+train_mode = not SHOW
+
+optimizer = torch.optim.Adam(modelC.parameters(),lr=LEARNING_RATE_C)#,weight_decay=0.0001)
+optimizerA = torch.optim.Adam(modelA.parameters(),lr=LEARNING_RATE)
 
 for episode in range(1,EPISODES+1):
-    train_mode = not SHOW
     env_info = env.reset(train_mode=train_mode)[brain_name] # reset the environment
-    state = env_info.vector_observations[0]            # get the start state
-    score = 0.0                                        # initialize the episode- score
-    step  = 0                                          # step within episodes
+    state  = env_info.vector_observations               # get the start state
+    score  = 0.0                                        # initialize the episode- score
+    step   = 0                                          # step within episodes
     max_reward = 0.0
     min_reward = 0.0
     while True:
         step += 1
         if TRAIN and episode <= WARMUP_EPISODES:
-            action = WARMUP_EPISODES_F* np.random.randn(ACTION_SIZE) # select random actions
-            action = np.clip(action, -1, 1)
+                action = WARMUP_EPISODES_F* np.random.randn(1,ACTION_SIZE) # select random actions
+                action = np.clip(action, -1, 1)
         else:
+            action = np.zeros( (1,ACTION_SIZE) )
             modelA.eval()
             with torch.no_grad():
-                tmp = torch.unsqueeze(torch.tensor(state),0)
-                action = np.resize(modelA(tmp).detach().numpy(),(ACTION_SIZE,))
+                tmp = torch.unsqueeze(torch.tensor(state[0]),0)
+                action[0] = np.resize(modelA(tmp).detach().numpy(),(ACTION_SIZE,))
             modelA.train()
 
-            noise += -NOISE_THETA * noise + NOISE_SIGMA * np.random.rand(4)
+            noise += -NOISE_THETA * noise + NOISE_SIGMA * np.random.rand(1,4)
             action += epsilon * noise
             action = np.clip(action, -1, 1)
 
-        env_info = env.step(action)[brain_name]        # send the action to the environment
-        next_state = env_info.vector_observations[0]   # get the next state
-        reward = env_info.rewards[0]                   # get the reward
-        done = env_info.local_done[0]                  # see if episode has finished
+        env_info = env.step(action)[brain_name]     # send the action to the environment
+        next_state = env_info.vector_observations   # get the next state
+        reward = env_info.rewards[0]          # get the reward
+        done = env_info.local_done[0]         # see if episode has finished
 
+        #fr = 0.1 if float(reward) > 0.0000000001 else 0.0 # correct the reward, experimental
         fr = float(reward)
+        score += fr                           # update the score
+        
         if fr > 0.0:
             if fr < min_reward or min_reward <= 0.0:
                 min_reward = fr
             if fr > max_reward:
                 max_reward = fr
 
+        # store transition in replay memory
+        transition = (state[0],action[0],fr,next_state[0],done)
+        if rm_size < REPLAY_BUFFERSIZE:
+            replay_memory.append(transition)
+            if PRIO_REPLAY:
+                replay_prio.append(priomax)
+                priosum += priomax
+            rm_size += 1
+        else:
+            replay_memory[rm_next] = transition
+            if PRIO_REPLAY:
+                priosum += priomax - replay_prio[rm_next]
+                replay_prio[rm_next] = priomax
+        
+        rm_next += 1
+        if rm_next >= REPLAY_BUFFERSIZE:
+            rm_next = 0
+            
         if TRAIN:
             modelA.train()
-            if fr > 0.0 or float(np.random.random_sample()) < NO_REWARD_RM_PROB:
-                # store transition in replay memory
-                transition = (state,action,reward,next_state,done)
-                if rm_size < REPLAY_BUFFERSIZE:
-                    replay_memory.append(transition)
-                    reward_memory.append(fr)
-                    rm_size += 1
-                else:
-                    replay_memory[rm_next] = transition
-                    reward_memory[rm_next] = fr
-                rm_next += 1
-                if rm_next >= REPLAY_BUFFERSIZE:
-                    rm_next = 0
 
             if rm_size >= REPLAY_BATCHSIZE and episode > WARMUP_EPISODES:
                 r_steps += 1
                 if r_steps >= REPLAY_STEPS:
                     r_steps = 0
                     for _ in range(OPTIMIZER_STEPS):
-                        adjrf = [fr+REWARD_OFFSET for fr in reward_memory] # adjusted reward float- value
-                        psum = float(sum(adjrf))
-                        tmp = float(1)/psum
-                        P = np.array(adjrf) * tmp
-                        if rm_size < REPLAY_BUFFERSIZE:
-                            batch_idx = np.random.choice(index_array[0:rm_size],size=REPLAY_BATCHSIZE,p=P)
+                        if PRIO_REPLAY:
+                            #print('[DEBUG] priosum:',type(priosum),priosum,sum(replay_prio))
+                            #print('[DEBUG] priomax:',type(priomax),priomax)
+                            tmp = float(1)/priosum
+                            #print('[DEBUG] tmp:',type(tmp),tmp)
+                            P = np.array(replay_prio,dtype=np.float64) * tmp
+                            #print('[DEBUG] P:',type(P),P.shape)
+                            #print('[DEBUG] index_array:',type(index_array))
+                            if rm_size < REPLAY_BUFFERSIZE:
+                                batch_idx = np.random.choice(index_array[0:rm_size],size=REPLAY_BATCHSIZE,p=P)
+                            else:
+                                batch_idx = np.random.choice(index_array,size=REPLAY_BATCHSIZE,p=P)
                         else:
-                            batch_idx = np.random.choice(index_array,size=REPLAY_BATCHSIZE,p=P)
-                        # batch_idx = np.random.randint(rm_size, size=REPLAY_BATCHSIZE)
+                            if rm_size < REPLAY_BUFFERSIZE:
+                                batch_idx = np.random.choice(index_array[0:rm_size],size=REPLAY_BATCHSIZE)
+                            else:
+                                batch_idx = np.random.randint(rm_size, size=REPLAY_BATCHSIZE)
                         
                         listt  = [replay_memory[idx] for idx in batch_idx]
+                        lists = torch.tensor([s for s,_,_,_,_ in listt],dtype=torch.float64)
+                        lista = torch.tensor([a for _,a,_,_,_ in listt],dtype=torch.float64)
                         listns = torch.tensor([ns for _,_,_,ns,_ in listt],dtype=torch.float64)
                         listna = modelAt(listns)
                         listr = torch.tensor([[r] for _,_,r,_,_ in listt],dtype=torch.float64)
                         listd = torch.tensor([[d] for _,_,_,_,d in listt],dtype=torch.float64)
 
                         y = listr + ((1.0 - listd) * (GAMMA * modelCt(listns,listna)))
+                        y.detach()
 
-                        # update critic, by minimizing the loss
-                        optimizer = torch.optim.Adam(modelC.parameters(),lr=LEARNING_RATE)
-
-                        lists = torch.tensor([s for s,_,_,_,_ in listt],dtype=torch.float64)
-                        lista = torch.tensor([a for _,a,_,_,_ in listt],dtype=torch.float64)
-                        modelA.zero_grad()
-                        modelC.zero_grad()
+                        # update critic, by minimizing the loss (plus update replay- prio)
                         y_ = modelC(lists,lista)
+
+                        if PRIO_REPLAY:
+                            delta = np.resize(torch.abs(y - y_).detach().numpy(),(len(batch_idx),1))
+                            #print('[DEBUG] delta:',type(delta),delta)
+                            
+                            for idx,i in enumerate(batch_idx):
+                                priosum -= float(replay_prio[i] - delta[idx])
+                                replay_prio[i] = float(delta[idx])
+                            priomax = float(max(replay_prio))
                         
-                        loss = fct.mse_loss(y_,y)
+                        loss = (y - y_).pow(2).mul(0.5).sum(-1).mean()#fct.mse_loss(y_,y)
 
                         optimizer.zero_grad()
-                        loss.backward()#retain_graph=True)
-                        torch.nn.utils.clip_grad_norm_(modelC.parameters(), 1.0)
+                        loss.backward()
+                        if GRAD_NORM_CLIP > 0.0:
+                            torch.nn.utils.clip_grad_norm_(modelC.parameters(), GRAD_NORM_CLIP)
                         optimizer.step()
 
                         # update actor by maximizing J => minimizing -J
-                        optimizerA = torch.optim.Adam(modelA.parameters(),lr=LEARNING_RATE)
-                        modelA.zero_grad()
-                        modelC.zero_grad()
-
                         lista  = modelA(lists)
-                        
-                        loss = -modelC(lists,lista)
+                        loss = -modelC(lists.detach(),lista)
                         loss = loss.mean()
 
                         optimizerA.zero_grad()
                         loss.backward()#retain_graph=True)
-                        torch.nn.utils.clip_grad_norm_(modelA.parameters(), 1.0)
+                        #torch.nn.utils.clip_grad_norm_(modelA.parameters(), 1.0)
                         optimizerA.step()
 
-                        noise = np.array([0.0,0.0,0.0,0.0])                # TODO: work with ACTION_SIZE
                         if epsilon - EPSILON_DELTA >= EPSILON_MIN:
                             epsilon -= EPSILON_DELTA
 
-                        for tp, p in zip(modelAt.parameters(), modelA.parameters()):
-                            tp.data.copy_(TAU* p.data + (1.0 - TAU) * tp.data)
-                        for tp, p in zip(modelCt.parameters(), modelC.parameters()):
-                            tp.data.copy_(TAU* p.data + (1.0 - TAU) * tp.data)
+                    for tp, p in zip(modelAt.parameters(), modelA.parameters()):
+                        #tp.data.copy_(TAU* p.data + (1.0 - TAU) * tp.data)
+                        tp.detach_()
+                        tp.copy_(TAU* p + (1.0 - TAU) * tp)
+                    for tp, p in zip(modelCt.parameters(), modelC.parameters()):
+                        #tp.data.copy_(TAU* p.data + (1.0 - TAU) * tp.data)
+                        tp.detach_()
+                        tp.copy_(TAU* p + (1.0 - TAU) * tp)
 
-                    #print('[DEBUG] reward_memory before:\n',reward_memory)
-                    tmprm = [r * REWARD_GAMMA for r in reward_memory]
-                    reward_memory = tmprm
-                    #print('[DEBUG] reward_memory after:\n',reward_memory)
-                    #quit()
-
-        score += reward                                # update the score
         state = next_state                             # roll over the state to next time step
 
         if done:                                       # exit loop if episode finished
             break
+
+    #noise = np.zeros( (1,ACTION_SIZE) ), maybe reset the noise per episode?
 
     score_buffer.append(score)
     while len(score_buffer) > 100:
         score_buffer.pop(0)
     l100_score = float(sum(score_buffer))/float(len(score_buffer)) if len(score_buffer) >= 100 else float(0)
 
-    rl.write('{} {} {} {} {} {} {}\n'.format(episode,score,l100_score,min_reward,max_reward,rm_size,(epsilon if episode > WARMUP_EPISODES else '-')))
+    rl.write('{} {} {} {} {} {} {}\n'.format(episode,score,l100_score,min_reward,max_reward,rm_size,(epsilon if episode > WARMUP_EPISODES else float(0))))
     rl.flush()
     print("Episode: {}; Score: {} ({}); min.Reward: {}; max.Reward: {}; RMSize: {}; Epsilon: {}".format(episode,score,l100_score,min_reward,max_reward,rm_size,(epsilon if episode > WARMUP_EPISODES else '-')))
+
+    if TRAIN and save_file and episode%20 == 0:
+        sf = 'actor_{}_bak.model'.format(save_file)
+        rl.write('# .. writing actor to "{}"\n'.format(sf))
+        torch.save(modelA,sf)
+        sf = 'target_actor_{}_bak.model'.format(save_file)
+        rl.write('# .. writing target-actor to "{}"\n'.format(sf))
+        torch.save(modelAt,sf)
+        sf = 'critic_{}_bak.model'.format(save_file)
+        rl.write('# .. writing critic to "{}"\n'.format(sf))
+        torch.save(modelC,sf)
+        sf = 'target_critic_{}_bak.model'.format(save_file)
+        rl.write('# .. writing target-critic to "{}"\n'.format(sf))
+        torch.save(modelCt,sf)
+
+        sf = 'transitions_{}_bak.pickle'.format(save_file)
+        rl.write('# .. saving transisitions to "{}"\n'.format(sf))
+        with open(sf, 'wb') as f:
+            pickledata = ( replay_memory, replay_prio, rm_next )
+            pickle.dump(pickledata, f, pickle.HIGHEST_PROTOCOL)
 
 env.close()
 
@@ -498,7 +543,7 @@ if TRAIN:
         sf = 'transitions_{}.pickle'.format(save_file)
         rl.write('# .. saving transisitions to "{}"\n'.format(sf))
         with open(sf, 'wb') as f:
-            pickledata = ( replay_memory, reward_memory, rm_next )
+            pickledata = ( replay_memory, replay_prio, rm_next )
             pickle.dump(pickledata, f, pickle.HIGHEST_PROTOCOL)
 
 rl.close()

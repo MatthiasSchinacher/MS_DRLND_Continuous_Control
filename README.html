@@ -6,8 +6,12 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 <p>In the environment an robotic arm agent is tasked with trying to stay in a slowly moving spherical target area (&quot;the green ball&quot;).</p>
 <p>The agent is supposed to get a reward of 0.1 per time step and an episode is 1000 time steps. The environment can be accessed via python/ has a python interface. The state space is a vector of 33 numeric values (that represent the agents velocity, location and so on).</p>
 <p>The defined goal of the homework/ project is/was to achieve a &quot;sustained&quot; score of at least 30 per episode. That means, that the algorithm/ the model should be able to average above score 30 for &quot;the last 100 episodes&quot; over a number of episodes.</p>
-<h3 id="amendment-2018-12-11-version-2">Amendment 2018-12-11 (Version 2)</h3>
-<p>Because my 1st attempt did not yield the sustained 30 score goal, I made some adjustments. Upon the advice of counsel, I modified my script to use the 20 Agents environment, instead of the single agent environment. More precisly, I copied my script into a new file called &quot;python ms_drlndcc_pr_20.py&quot; and made the adjustments there.</p>
+<h3 id="amendment-2018-12-18-version-3">Amendment 2018-12-18 (Version 3)</h3>
+<p>Because my 1st attempt did not yield the sustained 30 score goal, I made some adjustments. Upon the advice of counsel, I modified my script to use the 20 Agents environment, instead of the single agent environment.<br />
+I ran some simulations with the 20 Agents variant, but could get nowhere near the target 30 score still; I therefor abandonend the 20 Agents variant.</p>
+<p>I then modified the one agent variant of my script to use a more conventional version of priority replay, not based on the actual rewards, but on the &quot;unexpectedness&quot; of the transition. I also implemented a few additional flags for the configuration, like flags whether or not to use priority replay at all or use batch-norm layers or grad-norm clipping for the critic- optimization step.<br />
+After again running a bunch of different configuration parameter sets through the simulation I finally found a configuration that would yield the desired target score (30). The configuration was one without without batch-norm layers (I did not expect that, because I had read often, that these layers would be essential) plus it would not &quot;hold&quot; the above 30 score for a number of episodes.<br />
+I then experimented with various configurations, that would use the before mentioned one as pre-training (by loading the models and replay-buffer) but change other parameters. I was surprised to find, that a configuration without priority-replay and without grad-norm clipping worked best and would yield a sustained score 30.</p>
 <h1 id="dependencies">Dependencies</h1>
 <p>The actual &quot;program&quot; (agent) is a python script that can be run from the command line. To be able to run it, python 3.6 must be installed.</p>
 <h2 id="python-packages">Python packages</h2>
@@ -23,11 +27,22 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 <p>To run the script from the command line (Linux), the dependencies mentioned must be installed and the contents of the &quot;Reacher_Linux.zip&quot; need to be unzipped in the same directory, where the actual script &quot;ms_drlndcc_pr.py&quot; resides, so that we have a subdirectory &quot;Reacher_Linux&quot;.</p>
 <pre><code>python ms_drlndcc_pr.py command-file.ini</code></pre>
 <p>will start the agent as per the parameters in the file &quot;command-file.ini&quot;. Depending on the contents of the command-file, the agent will try to solve the environment and train the neural networks that approximate the actor and critic functions of the DDPG algorithm used. the script can load predefined NN- models from a files and only simulate the Reacher- environment without learning. For more details see also the project- report.</p>
-<h3 id="amendment-2018-12-11-version-2-1">Amendment 2018-12-11 (Version 2)</h3>
-<p>To run the simulation with 20 agents instead of 1, use following instead:</p>
-<pre><code>python ms_drlndcc_pr_20.py command-file.ini</code></pre>
-<p>Note: the &quot;Reacher_Linux&quot; subdirectory needs to include the correct version of the environment, if one uses the &quot;20 agents&quot; script, the respective environment must be present.</p>
 <h2 id="parameters">Parameters</h2>
+<h3 id="amendment-2018-12-18-version-3-1">Amendment 2018-12-18 (Version 3)</h3>
+<p>Since the prio- replay is not based on rewards any longer and I implemented some additional boolean config-parameters, there are some changes to the parameters.</p>
+<h3 id="old-parameters-not-in-version-3">Old Parameters not in Version 3</h3>
+<ul>
+<li>hyperparameters
+<ul>
+<li>replay prioritization
+<ul>
+<li>reward_gamma: reward- gamma discount factor</li>
+<li>reward_offset: importance offset</li>
+<li>no_reward_rm_prob: probability for transition with zero- reward to enter replay- memory</li>
+</ul></li>
+</ul></li>
+</ul>
+<h3 id="current">Current</h3>
 <ul>
 <li>global
 <ul>
@@ -48,6 +63,7 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 <li>h2: second size- parameter for the actor-NN- model</li>
 <li>c_h1: first size- parameter for the critic- NN- model</li>
 <li>c_h2: second size- parameter for the critic-NN- model</li>
+<li>batch_norm: whether to use batch norm layers (flag)</li>
 <li>load_file: name- fragment for the files from which to load models (if any)</li>
 <li>save_file: name- fragment for the files to save the models to</li>
 </ul></li>
@@ -60,16 +76,12 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 <li>replay_batchsize: number of transitions to sample per optimizing step</li>
 <li>replay_steps: simulation-steps between each optimization run</li>
 <li>optimizer_steps: no. of batch optimization-steps per optimization run</li>
-<li>learning_rate: the learning rate</li>
+<li>learning_rate: the learning rate for the actor optimizer</li>
+<li>learning_rate_c: the learning rate for the critic optimizer</li>
 <li>gamma: DPPG gamma factor</li>
-<li>tau: tau (soft target update)</li>
-<li>replay prioritization
-<ul>
-<li>reward_gamma: reward- gamma discount factor</li>
-<li>reward_offset: importance offset</li>
-<li>no_reward_rm_prob: probability for transition with zero- reward to enter replay- memory</li>
-</ul></li>
-<li>sample action noise
+<li>grad_norm_clip: grad-norm clipping treshold for the critic (smaller 0.0 means no clipping)</li>
+<li>prio_replay: whether to use priority replay (flag)</li>
+<li>tau: tau (soft target update) - sample action noise
 <ul>
 <li>epsilon_start: start value for epsilon</li>
 <li>epsilon_delta: value to subtract from epsilo for each optimization step</li>
@@ -81,39 +93,43 @@ It contains mainly a python implementation of the DDPG- learning algorithm with 
 </ul>
 <h3 id="example-command-file-contents">Example command-file contents</h3>
 <pre><code>[global]
-runlog = test09.log
+runlog = test15c4.log
 
 [mode]
 train = True
 show = False
 
 [rand]
-seed = 34175
+seed = 341919
 
 [model]
-h1 = 167
-h2 = 97
-c_h1 = 131
-c_h2 = 57
-save_file = test09
+h1         = 399
+h2         = 301
+c_h1       = 401
+c_h2       = 299
+save_file  = test15c4
+load_file  = test15
+batch_norm = False
 
 [hyperparameters]
-episodes           = 350
-warmup_episodes    = 20
+episodes           = 200
+warmup_episodes    = 0
 warmup_episodes_f  = 0.3
 replay_buffersize  = 100000
 replay_batchsize   = 128
-replay_steps       = 20
-gamma              = 0.98
+replay_steps       = 1
+gamma              = 0.99
 learning_rate      = 0.001
-optimizer_steps    = 5
+learning_rate_c    = 0.0001
+optimizer_steps    = 1
 tau                = 0.001
-reward_gamma       = 0.98
-reward_offset      = 0.01
-no_reward_rm_prob  = 0.4
-epsilon_start      = 0.5
-epsilon_delta      = 0.00001
-epsilon_min        = 0.03</code></pre>
+epsilon_start      = 0.4
+epsilon_delta      = 0.000001
+epsilon_min        = 0.3
+noise_theta        = 0.15
+noise_sigma        = 0.2
+grad_norm_clip     = -1.0
+prio_replay        = False</code></pre>
 <h2 id="output">Output</h2>
 <h3 id="logfile">Logfile</h3>
 <p>The main output is a log file which contains various information as within #- style comment lines and the time-series data of - Episode- number - Score (at episode end) - Minimum of all non zero rewards for a single step - Maximum of rewards for a single step - Size of replay buffer at episode end - The epsilon at episode end</p>
@@ -127,9 +143,7 @@ epsilon_min        = 0.03</code></pre>
 148 2.389999946579337 1.3574999696575105 0.009999999776482582 0.03999999910593033 61715 0.17969999999967967
 149 2.5199999436736107 1.3801999691501259 0.009999999776482582 0.03999999910593033 62138 0.17719999999967717
 ...</code></pre>
-<h4 id="amendment-2018-12-11-version-2-2">Amendment 2018-12-11 (Version 2)</h4>
-<p>The output for the 20- agents version is sligthly different - instead of the simple score (sum of rewards), we list the average score (accross the 20 agents per episode) - instead of the minimum step- reward, we list the minimum score (accross the 20 agents per episode) - instead of the maximum step-rewards, we list the maximum score (accross the 20 agents per episode)</p>
-<h1 id="the-solution">The solution</h1>
+<h1 id="the-solution-version-1---actually-was-not-a-solution">The solution (Version 1) - [actually was not a solution]</h1>
 <p>To my big disappointment, my agent did not reach the target score of 30. I think however, that there is a bug in the environemt or a funny dependency so that the rewards received are much smaller. I did NOT observe a reward of 0.1 per time step, but my agent only got rewards between 0.01 and 0.04 per time step.</p>
 <p>Since the possible rewards per time step were much smaller, and if the simulation is run in show mode with the models e.g. for the &quot;test09.ini&quot; command file one can clearly see, that the agent has learned to stay in the target area, my solution should be considered to be meeting the criteria.</p>
 <p>The simulation run did yield a sustained score (last 100 episodes average) of well above 4, and since the the rewards per time step were smaller than promised by an order of magnitude, I consider the task solved.</p>
@@ -142,14 +156,22 @@ epsilon_min        = 0.03</code></pre>
 <p>One should be able to replicate the result by running:</p>
 <pre><code>python ms_drlndcc_pr.py test09.ini</code></pre>
 <p>See the actual project report for details.</p>
-<h3 id="amendment-2018-12-11-version-2-3">Amendment 2018-12-11 (Version 2)</h3>
-<p>TODO</p>
+<h1 id="the-solution-version-3---2018-12-18">The solution (Version 3) - 2018-12-18</h1>
+<p>The first version of my implementation could not reach the target score of 30; the second version (with 20 Agents) could not as well.</p>
+<p>After altering the 1 agent variant again in some respects, I did find a combination of parameters that resulted in the desired learning (see &quot;test15.ini&quot;). It reached score 30 but not in a sustained fashion. But when I use the resulting models as pretraining, a different set of hyper- parameters (&quot;test15c4.ini&quot;) will result in a sustained 30-score.</p>
+<h2 id="graph-1">Graph</h2>
 <div class="figure">
-<img src="test10_20.png" alt="My solution" />
-<p class="caption">My solution</p>
+<img src="test15.png" alt="My solution II pretraining" />
+<p class="caption">My solution II pretraining</p>
+</div>
+<div class="figure">
+<img src="test15c4.png" alt="My solution II" />
+<p class="caption">My solution II</p>
 </div>
 <p>One should be able to replicate the result by running:</p>
-<pre><code>python ms_drlndcc_pr_20.py test10_20.ini</code></pre>
+<pre><code>python ms_drlndcc_pr.py test15.ini</code></pre>
+<p>and after the first finished</p>
+<pre><code>python ms_drlndcc_pr.py test15c4.ini</code></pre>
 <h1 id="misc">Misc</h1>
 <h2 id="zip--archives">ZIP- archives</h2>
 <h3 id="ini.zip">INI.zip</h3>
@@ -160,6 +182,8 @@ epsilon_min        = 0.03</code></pre>
 <p>Pictures created with gnuplot from the log-files and used for the project report.</p>
 <h3 id="models.zip">MODELS.zip</h3>
 <p>The NN- models resulting from the simulation runs.</p>
+<h4 id="amendment-2018-12-18-version-3-2">Amendment 2018-12-18 (Version 3)</h4>
+<p>Additional ZIP- archives for the &quot;version 3&quot; solution are marked with &quot;v3&quot;.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li>report.pdf: the project report, contains additional information</li>
